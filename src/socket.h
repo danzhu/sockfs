@@ -1,6 +1,7 @@
 #ifndef SOCK_SOCKET_H
 #define SOCK_SOCKET_H
 
+#include "fd.h"
 #include "lib.h"
 #include <cstdint>
 #include <cstring>
@@ -60,19 +61,19 @@ class Socket
 {
 public:
     Socket();
-    ~Socket();
-    Socket(const Socket &other) = delete;
-    Socket(Socket &&other);
-    Socket &operator=(const Socket &other) = delete;
-    Socket &operator=(Socket &&other);
-    void swap(Socket &other);
 
     void bind(std::uint16_t port);
     void listen();
     Socket accept();
     void connect(const char *hostname, std::uint16_t port);
+    void write(const char *data, size_t size);
+    void read(char *data, size_t size);
+    void send();
+    void receive();
+    void close();
 
-    operator bool() { return !m_closed; }
+    const Fd &fd() const { return m_fd; }
+    operator bool() { return !m_fd.closed(); }
 
     template <typename T>
     Socket &operator<<(Raw<T> data)
@@ -159,20 +160,13 @@ public:
     }
 
 private:
-    int m_fd;
-    bool m_closed = false;
+    Fd m_fd;
     std::ostringstream m_out_buf;
     std::stringstream m_in_buf;
     size_t m_out_size = 0;
     size_t m_in_size = 0;
 
-    explicit Socket(int fd);
-
-    void write(const char *data, size_t size);
-    void read(char *data, size_t size);
-    void send();
-    void receive();
-    void close();
+    explicit Socket(Fd fd);
 };
 
 #endif

@@ -10,64 +10,68 @@
 
 Fs::Fs(Socket client) : m_client{std::move(client)} {}
 
-void Fs::run()
+void Fs::on_read()
 {
     std::string op;
-    while (m_client >> op)
+    m_client >> op;
+
+    if (!m_client)
+        return;
+
+    std::cout << op;
+
+    if (op == "getattr")
+        getattr();
+    else if (op == "access")
+        access();
+    else if (op == "readlink")
+        readlink();
+    else if (op == "readdir")
+        readdir();
+    else if (op == "mknod")
+        mknod();
+    else if (op == "mkdir")
+        mkdir();
+    else if (op == "unlink")
+        unlink();
+    else if (op == "rmdir")
+        rmdir();
+    else if (op == "symlink")
+        symlink();
+    else if (op == "rename")
+        rename();
+    else if (op == "link")
+        link();
+    else if (op == "chmod")
+        chmod();
+    else if (op == "chown")
+        chown();
+    else if (op == "truncate")
+        truncate();
+    else if (op == "ftruncate")
+        ftruncate();
+    else if (op == "utimens")
+        utimens();
+    else if (op == "create")
+        create();
+    else if (op == "open")
+        open();
+    else if (op == "read")
+        read();
+    else if (op == "write")
+        write();
+    else if (op == "statfs")
+        statfs();
+    else if (op == "release")
+        release();
+    else
     {
-        std::cout << op;
+        std::cout << " - unsupported operation\n";
 
-        if (op == "getattr")
-            getattr();
-        else if (op == "access")
-            access();
-        else if (op == "readlink")
-            readlink();
-        else if (op == "readdir")
-            readdir();
-        else if (op == "mknod")
-            mknod();
-        else if (op == "mkdir")
-            mkdir();
-        else if (op == "unlink")
-            unlink();
-        else if (op == "rmdir")
-            rmdir();
-        else if (op == "symlink")
-            symlink();
-        else if (op == "rename")
-            rename();
-        else if (op == "link")
-            link();
-        else if (op == "chmod")
-            chmod();
-        else if (op == "chown")
-            chown();
-        else if (op == "truncate")
-            truncate();
-        else if (op == "ftruncate")
-            ftruncate();
-        else if (op == "utimens")
-            utimens();
-        else if (op == "create")
-            create();
-        else if (op == "open")
-            open();
-        else if (op == "read")
-            read();
-        else if (op == "write")
-            write();
-        else if (op == "statfs")
-            statfs();
-        else if (op == "release")
-            release();
-        else
-        {
-            std::cout << " - unsupported operation\n";
-
-            m_client << EINVAL;
-        }
+        m_client << EINVAL;
     }
+
+    m_client.send();
 }
 
 void Fs::getattr()

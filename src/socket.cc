@@ -1,5 +1,6 @@
 #include "socket.h"
 
+#include "config.h"
 #include "lib.h"
 #include <algorithm>
 #include <array>
@@ -11,46 +12,11 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-Socket::Socket() : Socket{socket(AF_INET, SOCK_STREAM, 0)} {}
+Socket::Socket() : Socket{Fd{socket(AF_INET, SOCK_STREAM, 0)}} {}
 
-Socket::Socket(int fd) : m_fd{fd}
+Socket::Socket(Fd fd) : m_fd{std::move(fd)}
 {
-    check(fd, "open socket");
-
     m_in_buf.exceptions(std::stringstream::failbit);
-
-    std::cerr << "> open\n";
-}
-
-Socket::~Socket()
-{
-    if (!m_closed)
-        close();
-}
-
-Socket::Socket(Socket &&other)
-    : m_fd{other.m_fd}, m_closed{other.m_closed},
-      m_out_buf{std::move(other.m_out_buf)},
-      m_in_buf{std::move(other.m_in_buf)}, m_out_size{other.m_out_size},
-      m_in_size{other.m_in_size}
-{
-    other.m_closed = true;
-}
-
-Socket &Socket::operator=(Socket &&other)
-{
-    swap(other);
-    return *this;
-}
-
-void Socket::swap(Socket &other)
-{
-    std::swap(m_fd, other.m_fd);
-    std::swap(m_closed, other.m_closed);
-    std::swap(m_out_buf, other.m_out_buf);
-    std::swap(m_in_buf, other.m_in_buf);
-    std::swap(m_out_size, other.m_out_size);
-    std::swap(m_in_size, other.m_in_size);
 }
 
 void Socket::bind(std::uint16_t port)
@@ -63,7 +29,7 @@ void Socket::bind(std::uint16_t port)
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     // bind socket to address
-    int ret = ::bind(m_fd, reinterpret_cast<sockaddr *>(&server_addr),
+    int ret = ::bind(m_fd.data(), reinterpret_cast<sockaddr *>(&server_addr),
                      sizeof(server_addr));
     check(ret, "bind");
 
@@ -74,7 +40,7 @@ void Socket::listen()
 {
     // open socket to listen for connections
     constexpr int BACKLOG_QUEUE_SIZE = 5;
-    int ret = ::listen(m_fd, BACKLOG_QUEUE_SIZE);
+    int ret = ::listen(m_fd.data(), BACKLOG_QUEUE_SIZE);
     // should always succeed
     check(ret, "listen");
 
@@ -86,13 +52,13 @@ Socket Socket::accept()
     // wait for a connection
     sockaddr_in cli_addr{};
     socklen_t cli_len = sizeof(cli_addr);
-    int cli_sock_fd =
-        ::accept(m_fd, reinterpret_cast<sockaddr *>(&cli_addr), &cli_len);
+    int cli_sock_fd = ::accept(
+        m_fd.data(), reinterpret_cast<sockaddr *>(&cli_addr), &cli_len);
     check(cli_sock_fd, "accept");
 
     std::cerr << "> accepted\n";
 
-    return Socket{cli_sock_fd};
+    return Socket{Fd{cli_sock_fd}};
 }
 
 void Socket::connect(const char *hostname, std::uint16_t port)
@@ -107,8 +73,9 @@ void Socket::connect(const char *hostname, std::uint16_t port)
     std::memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
 
     // connect to server
-    auto ret = ::connect(m_fd, reinterpret_cast<sockaddr *>(&server_addr),
-                         sizeof(server_addr));
+    auto ret =
+        ::connect(m_fd.data(), reinterpret_cast<sockaddr *>(&server_addr),
+                  sizeof(server_addr));
     check(ret, "connect");
 
     std::cerr << "> connected\n";
@@ -126,7 +93,7 @@ void Socket::read(char *data, std::size_t size)
 
     while (m_in_size < size)
     {
-        if (m_closed)
+        if (m_fd.closed())
             return;
 
         receive();
@@ -138,7 +105,7 @@ void Socket::read(char *data, std::size_t size)
 
 void Socket::send()
 {
-    if (m_closed)
+    if (m_fd.closed())
         throw std::runtime_error{"closed"};
 
     if (m_out_size == 0)
@@ -150,8 +117,7 @@ void Socket::send()
     auto msg = m_out_buf.str();
     assert(msg.size() == m_out_size);
 
-    auto bytes_written = ::write(m_fd, msg.data(), msg.size());
-    check(bytes_written, "write");
+    auto bytes_written = m_fd.write(msg.data(), msg.size());
 
     std::cerr << "> sent " << bytes_written << " bytes\n";
 
@@ -161,12 +127,11 @@ void Socket::send()
 
 void Socket::receive()
 {
-    if (m_closed)
+    if (m_fd.closed())
         throw std::runtime_error{"closed"};
 
-    std::array<char, 4096> msg;
-    auto bytes_read = ::read(m_fd, msg.data(), msg.size());
-    check(bytes_read, "read");
+    std::array<char, BUFFER_SIZE> msg;
+    auto bytes_read = m_fd.read(msg.data(), msg.size());
 
     std::cerr << "> received " << bytes_read << " bytes\n";
 
@@ -182,14 +147,10 @@ void Socket::receive()
 
 void Socket::close()
 {
-    if (m_closed)
+    if (m_fd.closed())
         throw std::runtime_error{"closed"};
 
     send();
 
-    m_closed = true;
-    int ret = ::close(m_fd);
-    check(ret, "close socket");
-
-    std::cerr << "> closed\n";
+    m_fd.close();
 }

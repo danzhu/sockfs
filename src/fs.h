@@ -1,14 +1,25 @@
 #ifndef SOCK_FS_H
 #define SOCK_FS_H
 
+#include "connection.h"
 #include "socket.h"
 
-class Fs
+class Fs : public Connection
 {
 public:
     explicit Fs(Socket client);
 
-    void run();
+    void on_read() override;
+
+    const Fd &fd() const override { return m_client.fd(); }
+
+    bool operator==(const Fs &other) const
+    {
+        return m_client.fd() == other.m_client.fd();
+    }
+
+private:
+    Socket m_client;
 
     void getattr();
     void access();
@@ -32,9 +43,6 @@ public:
     void write();
     void statfs();
     void release();
-
-private:
-    Socket m_client;
 
     template <typename T>
     std::enable_if_t<std::is_integral<T>::value, bool> ret_status(bool cond,
@@ -60,5 +68,18 @@ private:
 
     std::string get_path(const std::string &path);
 };
+
+namespace std
+{
+template <>
+class hash<Fs>
+{
+public:
+    std::size_t operator()(const Fs &fs) const
+    {
+        return std::hash<Fd>{}(fs.fd());
+    }
+};
+}
 
 #endif
