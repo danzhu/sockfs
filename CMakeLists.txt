@@ -35,7 +35,7 @@ else()
   message(WARNING "Compiler not recognized, no warning flags set")
 endif()
 
-add_library(sock STATIC src/socket.cc src/fd.cc)
+add_library(sock STATIC src/socket.cc src/fd.cc src/buffer.cc)
 
 add_executable(server src/server.cc src/epoll.cc src/connection.cc src/fs.cc src/console.cc)
 target_link_libraries(server sock)

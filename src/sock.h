@@ -1,6 +1,8 @@
 #ifndef SOCK_SOCK_H
 #define SOCK_SOCK_H
 
+#include "buffer.h"
+#include "coder.h"
 #include "socket.h"
 #include <fuse.h>
 
@@ -37,6 +39,10 @@ public:
 
 private:
     Socket m_socket;
+    Buffer m_buffer;
+    Coder<Buffer> m_coder;
+
+    void exchange();
 };
 
 #endif

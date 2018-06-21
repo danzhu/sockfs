@@ -1,6 +1,7 @@
 #include "fd.h"
 
 #include "lib.h"
+#include <iostream>
 #include <unistd.h>
 
 Fd::Fd(int fd) : m_data{fd} { check(fd, "open"); }
@@ -23,6 +24,7 @@ ssize_t Fd::write(const char *data, std::size_t size)
 {
     auto bytes = ::write(m_data, data, size);
     check(bytes, "write");
+    std::cerr << "> wrote " << bytes << '\n';
     return bytes;
 }
 
@@ -30,6 +32,7 @@ ssize_t Fd::read(char *data, std::size_t size)
 {
     auto bytes = ::read(m_data, data, size);
     check(bytes, "read");
+    std::cerr << "> read " << bytes << '\n';
     return bytes;
 }
 

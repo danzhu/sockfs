@@ -8,15 +8,15 @@
 #include <unistd.h>
 #include <vector>
 
-Fs::Fs(Socket client) : m_client{std::move(client)} {}
+Fs::Fs(Socket client) : m_client{std::move(client)}, m_coder{m_buffer} {}
 
 void Fs::on_read()
 {
-    std::string op;
-    m_client >> op;
+    // TODO: handle partial message
+    coder(m_client.fd()) >> m_buffer;
 
-    if (!m_client)
-        return;
+    std::string op;
+    m_coder >> op;
 
     std::cout << op;
 
@@ -68,17 +68,17 @@ void Fs::on_read()
     {
         std::cout << " - unsupported operation\n";
 
-        m_client << EINVAL;
+        m_coder << EINVAL;
     }
 
-    m_client.send();
+    coder(m_client.fd()) << m_buffer;
 }
 
 void Fs::getattr()
 {
     std::string path;
 
-    m_client >> path;
+    m_coder >> path;
 
     std::cout << ' ' << path << '\n';
 
@@ -86,7 +86,7 @@ void Fs::getattr()
     int ret = ::lstat(get_path(path).data(), &stbuf);
 
     if (ret_status(ret))
-        m_client << raw(stbuf);
+        m_coder << raw(stbuf);
 }
 
 void Fs::access()
@@ -94,7 +94,7 @@ void Fs::access()
     std::string path;
     int mask;
 
-    m_client >> path >> mask;
+    m_coder >> path >> mask;
 
     std::cout << ' ' << path << ' ' << mask << '\n';
 
@@ -108,7 +108,7 @@ void Fs::readlink()
     std::string path;
     size_t size;
 
-    m_client >> path >> size;
+    m_coder >> path >> size;
 
     std::cout << ' ' << path << ' ' << size << '\n';
 
@@ -119,7 +119,7 @@ void Fs::readlink()
     if (ret_status(bytes))
     {
         buf[bytes] = '\0';
-        m_client << var(buf.data(), bytes + 1);
+        m_coder << var(buf.data(), bytes + 1);
     }
 }
 
@@ -127,7 +127,7 @@ void Fs::readdir()
 {
     std::string path;
 
-    m_client >> path;
+    m_coder >> path;
 
     std::cout << ' ' << path << '\n';
 
@@ -142,10 +142,10 @@ void Fs::readdir()
         mode_t mode = ent->d_type << 12;
 
         // here 'true' indicates that there's still data
-        m_client << true << ent->d_name << ino << mode;
+        m_coder << true << ent->d_name << ino << mode;
     }
 
-    m_client << false;
+    m_coder << false;
 
     ::closedir(dir);
 }
@@ -156,7 +156,7 @@ void Fs::mknod()
     mode_t mode;
     dev_t rdev;
 
-    m_client >> path >> mode >> rdev;
+    m_coder >> path >> mode >> rdev;
 
     std::cout << ' ' << path << ' ' << mode << ' ' << rdev << '\n';
 
@@ -170,7 +170,7 @@ void Fs::mkdir()
     std::string path;
     mode_t mode;
 
-    m_client >> path >> mode;
+    m_coder >> path >> mode;
 
     std::cout << ' ' << path << ' ' << mode << '\n';
 
@@ -183,7 +183,7 @@ void Fs::unlink()
 {
     std::string path;
 
-    m_client >> path;
+    m_coder >> path;
 
     std::cout << ' ' << path << '\n';
 
@@ -196,7 +196,7 @@ void Fs::rmdir()
 {
     std::string path;
 
-    m_client >> path;
+    m_coder >> path;
 
     std::cout << ' ' << path << '\n';
 
@@ -210,7 +210,7 @@ void Fs::symlink()
     std::string from;
     std::string to;
 
-    m_client >> from >> to;
+    m_coder >> from >> to;
 
     std::cout << ' ' << from << ' ' << to << '\n';
 
@@ -224,7 +224,7 @@ void Fs::rename()
     std::string from;
     std::string to;
 
-    m_client >> from >> to;
+    m_coder >> from >> to;
 
     std::cout << ' ' << from << ' ' << to << '\n';
 
@@ -238,7 +238,7 @@ void Fs::link()
     std::string from;
     std::string to;
 
-    m_client >> from >> to;
+    m_coder >> from >> to;
 
     std::cout << ' ' << from << ' ' << to << '\n';
 
@@ -252,7 +252,7 @@ void Fs::chmod()
     std::string path;
     mode_t mode;
 
-    m_client >> path >> mode;
+    m_coder >> path >> mode;
 
     std::cout << ' ' << path << ' ' << mode << '\n';
 
@@ -267,7 +267,7 @@ void Fs::chown()
     uid_t uid;
     gid_t gid;
 
-    m_client >> path >> uid >> gid;
+    m_coder >> path >> uid >> gid;
 
     std::cout << ' ' << path << ' ' << uid << ' ' << gid << '\n';
 
@@ -281,7 +281,7 @@ void Fs::truncate()
     std::string path;
     off_t size;
 
-    m_client >> path >> size;
+    m_coder >> path >> size;
 
     std::cout << ' ' << path << ' ' << size << '\n';
 
@@ -296,7 +296,7 @@ void Fs::ftruncate()
     int fd;
     off_t size;
 
-    m_client >> path >> fd >> size;
+    m_coder >> path >> fd >> size;
 
     std::cout << ' ' << path << ' ' << fd << ' ' << size << '\n';
 
@@ -310,7 +310,7 @@ void Fs::utimens()
     std::string path;
     std::array<timespec, 2> ts;
 
-    m_client >> path >> raw(ts[0]) >> raw(ts[1]);
+    m_coder >> path >> raw(ts[0]) >> raw(ts[1]);
 
     std::cout << ' ' << path << '\n';
 
@@ -326,7 +326,7 @@ void Fs::create()
     mode_t mode;
     int flags;
 
-    m_client >> path >> mode >> flags;
+    m_coder >> path >> mode >> flags;
 
     std::cout << ' ' << path << ' ' << mode << ' ' << flags << '\n';
 
@@ -340,7 +340,7 @@ void Fs::open()
     std::string path;
     int flags;
 
-    m_client >> path >> flags;
+    m_coder >> path >> flags;
 
     std::cout << ' ' << path << ' ' << flags << '\n';
 
@@ -356,7 +356,7 @@ void Fs::read()
     size_t size;
     off_t offset;
 
-    m_client >> path >> fd >> size >> offset;
+    m_coder >> path >> fd >> size >> offset;
 
     std::cout << ' ' << path << ' ' << fd << ' ' << size << ' ' << offset
               << '\n';
@@ -365,7 +365,7 @@ void Fs::read()
     ssize_t bytes = ::pread(fd, buf.data(), buf.size(), offset);
 
     if (ret_status(bytes))
-        m_client << var(buf.data(), bytes);
+        m_coder << var(buf.data(), bytes);
 }
 
 void Fs::write()
@@ -375,7 +375,7 @@ void Fs::write()
     off_t offset;
     std::vector<char> buf;
 
-    m_client >> path >> fd >> offset >> buf;
+    m_coder >> path >> fd >> offset >> buf;
 
     std::cout << ' ' << path << ' ' << fd << ' ' << buf.size() << ' ' << offset
               << '\n';
@@ -389,7 +389,7 @@ void Fs::statfs()
 {
     std::string path;
 
-    m_client >> path;
+    m_coder >> path;
 
     std::cout << ' ' << path << '\n';
 
@@ -397,14 +397,14 @@ void Fs::statfs()
     int ret = ::statvfs(get_path(path).data(), &stbuf);
 
     if (ret_status(ret))
-        m_client << raw(stbuf);
+        m_coder << raw(stbuf);
 }
 
 void Fs::release()
 {
     int fd;
 
-    m_client >> fd;
+    m_coder >> fd;
 
     std::cout << ' ' << fd << '\n';
 

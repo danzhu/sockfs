@@ -1,6 +1,8 @@
 #ifndef SOCK_FS_H
 #define SOCK_FS_H
 
+#include "buffer.h"
+#include "coder.h"
 #include "connection.h"
 #include "socket.h"
 
@@ -20,6 +22,8 @@ public:
 
 private:
     Socket m_client;
+    Buffer m_buffer;
+    Coder<Buffer> m_coder;
 
     void getattr();
     void access();
@@ -50,7 +54,7 @@ private:
     {
         T ret = cond ? val : -errno;
         std::cout << "  ret " << ret << '\n';
-        m_client << ret;
+        m_coder << ret;
         return cond;
     }
 
