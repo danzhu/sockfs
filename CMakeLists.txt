@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(socket CXX)
+project(sockfs CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,5 +40,8 @@ else()
     message(WARNING "Compiler not recognized, no warning flags set")
 endif()
 
-add_executable(server src/server.cc)
-add_executable(client src/client.cc)
+add_executable(server src/server.cc src/socket.cc src/fs.cc)
+
+add_executable(client src/client.cc src/socket.cc src/sock.cc)
+target_compile_definitions(client PUBLIC -DFUSE_USE_VERSION=29 -D_FILE_OFFSET_BITS=64)
+target_link_libraries(client fuse)

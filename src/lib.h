@@ -1,28 +1,28 @@
-#ifndef SOCKET_LIB_H
-#define SOCKET_LIB_H
+#ifndef SOCK_LIB_H
+#define SOCK_LIB_H
 
-#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <unistd.h>
 
-inline void check(bool cond, const char *msg)
+inline void check(std::int64_t ret, const char *msg)
 {
-    std::cout << "> " << msg;
-    if (cond)
-    {
-        std::cout << '\n';
+    if (ret >= 0)
         return;
-    }
 
-    std::cerr << " FAILED\n";
-    std::exit(2);
+    std::ostringstream ss;
+    ss << msg << " returns " << ret << ", errno " << errno << "\n";
+    throw std::runtime_error{ss.str()};
 }
-
-inline void check(std::int32_t ret, const char *msg) { return check(ret >= 0, msg); }
-
-inline void check(std::int64_t ret, const char *msg) { return check(ret >= 0, msg); }
 
 inline void check(void *ptr, const char *msg)
 {
-    return check(ptr != nullptr, msg);
+    if (ptr != nullptr)
+        return;
+
+    std::ostringstream ss;
+    ss << msg << " returns nullptr\n";
+    throw std::runtime_error{ss.str()};
 }
 
 #endif
