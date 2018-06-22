@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
-#include <vector>
 
 Fs::Fs(Socket client) : m_client{std::move(client)}, m_coder{m_buffer} {}
 
@@ -112,14 +111,13 @@ void Fs::readlink()
 
     std::cout << ' ' << path << ' ' << size << '\n';
 
-    std::vector<char> buf(size);
-    ssize_t bytes =
-        ::readlink(get_path(path).data(), buf.data(), buf.size() - 1);
+    Buffer buf;
+    ssize_t bytes = ::readlink(get_path(path).data(), buf.write(size), size);
 
     if (ret_status(bytes))
     {
-        buf[bytes] = '\0';
-        m_coder << var(buf.data(), bytes + 1);
+        buf.resize(bytes);
+        m_coder << buf;
     }
 }
 
@@ -361,11 +359,14 @@ void Fs::read()
     std::cout << ' ' << path << ' ' << fd << ' ' << size << ' ' << offset
               << '\n';
 
-    std::vector<char> buf(size);
-    ssize_t bytes = ::pread(fd, buf.data(), buf.size(), offset);
+    Buffer buf;
+    ssize_t bytes = ::pread(fd, buf.write(size), size, offset);
 
     if (ret_status(bytes))
-        m_coder << var(buf.data(), bytes);
+    {
+        buf.resize(bytes);
+        m_coder << buf;
+    }
 }
 
 void Fs::write()
@@ -373,7 +374,7 @@ void Fs::write()
     std::string path;
     int fd;
     off_t offset;
-    std::vector<char> buf;
+    Buffer buf;
 
     m_coder >> path >> fd >> offset >> buf;
 

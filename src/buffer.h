@@ -6,7 +6,7 @@
 class Buffer
 {
 public:
-    Buffer();
+    explicit Buffer(std::size_t size = 0);
     ~Buffer();
     Buffer(const Buffer &other) = delete;
     Buffer(Buffer &&other);
@@ -18,12 +18,14 @@ public:
     char *write(std::size_t size);
     void read(char *data, std::size_t size);
     const char *read(std::size_t size);
+    void resize(std::size_t size);
     void clear();
 
     const char *data() const { return m_buffer + m_start; }
     char *data() { return m_buffer + m_start; }
     std::size_t size() const { return m_end - m_start; }
     std::size_t capacity() const { return m_capacity; }
+    bool empty() const { return m_start == m_end; }
 
 private:
     char *m_buffer = nullptr;

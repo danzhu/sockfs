@@ -2,12 +2,6 @@
 #define SOCK_SOCKET_H
 
 #include "fd.h"
-#include "lib.h"
-#include <cstdint>
-#include <iostream>
-#include <sstream>
-#include <type_traits>
-#include <vector>
 
 class Socket
 {

@@ -2,6 +2,7 @@
 #include "lib.h"
 #include "sock.h"
 #include <cassert>
+#include <iostream>
 #include <memory>
 #include <unistd.h>
 

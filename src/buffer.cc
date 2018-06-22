@@ -1,11 +1,23 @@
 #include "buffer.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 #include <utility>
 
-Buffer::Buffer() {}
+Buffer::Buffer(std::size_t size)
+{
+    if (size == 0)
+        return;
+
+    m_capacity = 16;
+    while (m_capacity < size)
+        m_capacity *= 2;
+
+    m_buffer = static_cast<char *>(std::malloc(m_capacity));
+    m_end = size;
+}
 
 Buffer::~Buffer() { std::free(m_buffer); }
 
@@ -32,51 +44,8 @@ void Buffer::write(const char *data, std::size_t size)
 
 char *Buffer::write(std::size_t size)
 {
-    // move to start if we are empty to reduce reallocations
-    if (this->size() == 0)
-    {
-        m_start = 0;
-        m_end = 0;
-    }
-
-    auto new_end = m_end + size;
-    if (new_end > m_capacity)
-    {
-        // need to move things around
-
-        auto new_size = new_end - m_start;
-        if (new_size > m_capacity)
-        {
-            // need to reallocate
-
-            auto new_cap = m_capacity == 0 ? 16 : m_capacity;
-            while (new_cap < new_size)
-                new_cap *= 2;
-
-            auto new_buf = static_cast<char *>(std::malloc(new_cap));
-            if (m_buffer != nullptr)
-            {
-                std::memcpy(new_buf, data(), this->size());
-                std::free(m_buffer);
-            }
-            m_buffer = new_buf;
-
-            m_capacity = new_cap;
-        }
-        else
-        {
-            // otherwise, just move data to the front
-
-            std::memmove(m_buffer, data(), this->size());
-        }
-
-        m_end -= m_start;
-        m_start = 0;
-    }
-
-    auto old_data = m_buffer + m_end;
-    m_end = new_end;
-    return old_data;
+    resize(this->size() + size);
+    return m_buffer + m_end - size;
 }
 
 void Buffer::read(char *data, std::size_t size)
@@ -86,13 +55,47 @@ void Buffer::read(char *data, std::size_t size)
 
 const char *Buffer::read(std::size_t size)
 {
-    auto new_start = m_start + size;
-    if (new_start > m_end)
+    if (size > this->size())
         throw std::out_of_range{"buffer underflow"};
 
-    auto old_data = m_buffer + m_start;
-    m_start = new_start;
-    return old_data;
+    m_start += size;
+    return m_buffer + m_start - size;
+}
+
+void Buffer::resize(std::size_t size)
+{
+    // move to start if we are empty to reduce reallocations
+    if (empty())
+        m_start = m_end = 0;
+
+    auto new_end = m_start + size;
+    if (new_end <= m_capacity)
+    {
+        // we have enough space
+
+        m_end = new_end;
+    }
+    else if (size <= m_capacity)
+    {
+        // enough space if we move data to the front
+
+        std::memmove(m_buffer, data(), this->size());
+
+        m_start = 0;
+        m_end = size;
+    }
+    else
+    {
+        // need to reallocate
+
+        Buffer new_buf{size};
+        if (this->size() > 0)
+            std::memcpy(new_buf.data(), data(), this->size());
+
+        *this = std::move(new_buf);
+    }
+
+    assert(this->size() == size);
 }
 
 void Buffer::clear() { *this = Buffer{}; }

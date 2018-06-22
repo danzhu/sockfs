@@ -5,6 +5,7 @@
 #include "coder.h"
 #include "connection.h"
 #include "socket.h"
+#include <iostream>
 
 class Fs : public Connection
 {

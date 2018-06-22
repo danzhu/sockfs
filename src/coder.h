@@ -5,7 +5,6 @@
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
-#include <vector>
 
 template <typename T>
 class Raw
@@ -131,25 +130,10 @@ public:
         return *this >> raw(data);
     }
 
-    Coder &operator>>(std::vector<char> &data)
-    {
-        std::size_t size;
-        *this >> size;
-        // if (size > 4096)
-        //     std::cout << "WARNING: large size " << size << '\n';
-
-        data.resize(size);
-        m_stream->read(data.data(), size);
-        return *this;
-    }
-
     Coder &operator>>(std::string &data)
     {
         std::size_t size;
         *this >> size;
-        // if (size > 4096)
-        //     std::cout << "WARNING: large size " << size << '\n';
-
         data.resize(size);
         m_stream->read(&data[0], size);
         return *this;

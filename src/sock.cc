@@ -1,5 +1,7 @@
 #include "sock.h"
 
+#include <iostream>
+
 namespace
 {
 template <typename T>
@@ -45,16 +47,19 @@ int Sock::access(const char *path, int mask)
 
 int Sock::readlink(const char *path, char *buf, size_t size)
 {
-    std::cout << "readlink " << path << ' ' << size << '\n';
+    std::cout << "readlink " << path << ' ' << size - 1 << '\n';
 
-    m_coder << "readlink" << path << size;
+    m_coder << "readlink" << path << size - 1;
 
     exchange();
 
     ssize_t bytes;
     m_coder >> bytes;
     if (cont(bytes))
+    {
         m_coder >> var(buf, size);
+        buf[bytes] = '\0';
+    }
 
     return 0;
 }
